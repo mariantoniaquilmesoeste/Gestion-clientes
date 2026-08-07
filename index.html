@@ -1173,9 +1173,12 @@ function openModal(type){
           ${S.listas.map(l=>`<option value="${l.id}" ${l.id===cli?.listaId?'selected':''}>${l.nombre}</option>`).join('')}
         </select>
       </div>
-      <div class="modal-btns">
-        <button class="btn-s" onclick="closeModal()">Cancelar</button>
-        <button class="btn" onclick="guardarCliente('${cli?.id}')">GUARDAR</button>
+      <div class="modal-btns" style="justify-content:space-between">
+        <button class="btn-r btn-sm" onclick="eliminarCliente('${cli?.id}')">✕ Eliminar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-s" onclick="closeModal()">Cancelar</button>
+          <button class="btn" onclick="guardarCliente('${cli?.id}')">GUARDAR</button>
+        </div>
       </div>`;
   } else if(type==='lista'){
     S.nivelCount=2;
@@ -1315,6 +1318,15 @@ async function guardarPago(){
   S.pagos.push(pago);
   closeModal();
   renderPerfilStats();renderClientes();renderCuenta();
+}
+
+async function eliminarCliente(id){
+  if(!confirm('¿Eliminar este cliente? Sus remitos y pagos quedan en el historial.')) return;
+  try{ await api({action:'delCliente',id}); }catch(e){console.warn(e);}
+  S.clientes = S.clientes.filter(c=>c.id!==id);
+  closeModal();
+  renderDashboard();
+  showVw('cli','inicio');
 }
 
 async function guardarCliente(editId){
