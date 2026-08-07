@@ -484,7 +484,8 @@ function api(p){
     const sc=document.createElement('script');
     window[cb]=d=>{delete window[cb];sc.remove();res(d);};
     sc.onerror=()=>{delete window[cb];sc.remove();rej(new Error('Network error'));};
-    sc.src=API+'?'+qs;
+    const cleanAPI=API.replace(/\/u\/\d+\//,'/');
+    sc.src=cleanAPI+'?'+qs;
     document.head.appendChild(sc);
   });
 }
