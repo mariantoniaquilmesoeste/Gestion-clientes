@@ -494,7 +494,16 @@ function api(p){
 const fmt=n=>Number(n).toLocaleString('es-AR');
 const fmtP=n=>'$ '+fmt(n);
 const rd=n=>Math.round(n/100)*100;
-const hoy=()=>new Date().toISOString().slice(0,10);
+const hoy=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+// Normaliza fechas que llegan de Sheets como "2026-10-29T03:00:00.000Z" a "2026-10-29" (hora argentina)
+const fechaCorta=f=>{
+  if(!f) return f;
+  const s=String(f);
+  if(!s.includes('T')) return s;
+  const d=new Date(s);
+  if(isNaN(d)) return s.slice(0,10);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+};
 const fmtFecha=f=>{
   if(!f) return '—';
   const s=String(f).slice(0,10);
@@ -550,6 +559,8 @@ async function init(){
     S.productos= r.productos||[];
     S.remitos  = r.remitos||[];
     S.pagos          = r.pagos          || [];
+    S.remitos.forEach(x=>{x.fecha=fechaCorta(x.fecha);});
+    S.pagos.forEach(x=>{x.fecha=fechaCorta(x.fecha);});
     S.vendedores     = r.vendedores     || [];
     S.pagosVendedores= r.pagosVendedores|| [];
     setStatus('ok');
@@ -1019,12 +1030,13 @@ async function _emitirRemito(){
   const reqFactura=document.getElementById('rem-factura')?.checked||false;
   const total=S.items.reduce((s,it)=>s+it.cantidad*it.precio,0)+envio;
   const itemsConEnvio=envio>0?[...S.items,{productoId:'envio',codigo:'ENV',displayNombre:'Costo de Envío',unidad:'u',cantidad:1,precio:envio,nivel:'—'}]:S.items;
-  const rd2={numero,fecha,clienteId:cli.id,clienteNombre:cli.nombre,condPago:pago,obs,listaId:lista?.id||'',requiereFactura:reqFactura,facturado:false};
+  const rd2={numero,fecha,clienteId:cli.id,clienteNombre:cli.nombre,condPago:pago,obs,listaId:lista?.id||'',requiereFactura:reqFactura,facturado:false,total};
   fillPrintArea(numero,fecha,pago,obs,cli,lista,S.items,envio);
   try{
     if(S.editRemitoId){
-      const res=await api({action:'updateRemito',remito:encodeURIComponent(JSON.stringify({...rd2,id:S.editRemitoId})),items:encodeURIComponent(JSON.stringify(itemsConEnvio))});
-      if(res.ok){const idx=S.remitos.findIndex(r=>r.id===S.editRemitoId);if(idx>=0) S.remitos[idx]={...S.remitos[idx],...rd2,total};}
+      const rdEdit={...rd2,id:S.editRemitoId};delete rdEdit.facturado; // al editar no se pierde la marca de facturado
+      const res=await api({action:'updateRemito',remito:encodeURIComponent(JSON.stringify(rdEdit)),items:encodeURIComponent(JSON.stringify(itemsConEnvio))});
+      if(res.ok){const idx=S.remitos.findIndex(r=>r.id===S.editRemitoId);if(idx>=0) S.remitos[idx]={...S.remitos[idx],...rdEdit,total};}
     }else{
       const res=await api({action:'saveRemito',remito:encodeURIComponent(JSON.stringify(rd2)),items:encodeURIComponent(JSON.stringify(itemsConEnvio))});
       if(res.ok) S.remitos.push({id:res.id,numero,fecha,clienteId:cli.id,clienteNombre:cli.nombre,listaId:lista?.id||'',total,estado:'pendiente',abonado:0,requiereFactura:reqFactura,facturado:false,creadoEn:new Date().toISOString()});
